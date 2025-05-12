@@ -71,5 +71,14 @@ class EnsambladorListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by EnsambladorParser#operando.
+    def enterOperando(self, ctx:EnsambladorParser.OperandoContext):
+        pass
+
+    # Exit a parse tree produced by EnsambladorParser#operando.
+    def exitOperando(self, ctx:EnsambladorParser.OperandoContext):
+        pass
+
+
 
 del EnsambladorParser

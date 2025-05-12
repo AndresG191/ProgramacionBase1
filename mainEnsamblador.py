@@ -4,88 +4,76 @@ from EnsambladorLexer import EnsambladorLexer
 from EnsambladorParser import EnsambladorParser
 
 
-# Manejador de errores personalizado
 class CustomErrorListener(ErrorListener):
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        print(f"Error sintáctico en línea {line}:{column} - {msg}")
+        offending = offendingSymbol.text if offendingSymbol else "<EOF>"
+
+        # Obtén el conjunto de tokens esperados
+        expected_tokens = recognizer.getExpectedTokens()
+        symbolic_names = recognizer.symbolicNames
+
+        # Genera lista de nombres simbólicos legibles
+        expected = []
+        for interval in expected_tokens.intervals:
+            for token_type in range(interval[0], interval[1] + 1):
+                if 0 <= token_type < len(symbolic_names):
+                    name = symbolic_names[token_type]
+                    if name is not None:
+                        expected.append(name)
+
+        expected_str = ', '.join(expected) if expected else "desconocido"
+
+        print(f"   Error de sintaxis en línea {line}, columna {column}:")
+        print(f"   Token inesperado: '{offending}'")
+        print(f"   Se esperaba alguno de: {expected_str}")
 
 
+# Imprime los tokens generados por el lexer
 def print_tokens(lexer):
     lexer.reset()
     token = lexer.nextToken()
     while token.type != Token.EOF:
-        token_name = lexer.symbolicNames[token.type] if 0 <= token.type < len(
-            lexer.symbolicNames) else f"UNKNOWN({token.type})"
-        print(f"Token: {token_name} Text: {token.text}")
+        token_name = lexer.symbolicNames[token.type] if token.type < len(lexer.symbolicNames) else f"UNKNOWN({token.type})"
+        print(f"  {token_name:<20} → '{token.text}'")
         token = lexer.nextToken()
 
+# Función para ejecutar una prueba con entrada
+def run_test(input_text, label="Prueba"):
+    print(f"\n {label}")
+    print(f"Entrada: {repr(input_text)}")
+
+    input_stream = InputStream(input_text)
+
+    lexer = EnsambladorLexer(input_stream)
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(CustomErrorListener())
+
+    print(" Tokens:")
+    print_tokens(lexer)
+
+    # Reiniciar el lexer y construir el parser
+    input_stream = InputStream(input_text)
+    lexer = EnsambladorLexer(input_stream)
+    stream = CommonTokenStream(lexer)
+
+    parser = EnsambladorParser(stream)
+    parser.removeErrorListeners()
+    parser.addErrorListener(CustomErrorListener())
+
+    try:
+        tree = parser.programa()
+        print("\n Árbol de análisis:")
+        print(tree.toStringTree(recog=parser))
+    except Exception as e:
+        print(f"[Parser Error] {e}")
 
 def main():
-    # Prueba 1: "Sumar 5 y 3 y guardar en registro A"
-    print("Prueba 1: Sumar 5 y 3 y guardar en registro A")
-    input_text = "Sumar 5 y 3 y guardar en registro A\n"
-    input_stream = InputStream(input_text)
-
-    lexer = EnsambladorLexer(input_stream)
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(CustomErrorListener())
-
-    print("Tokens generados:")
-    print_tokens(lexer)
-
-    stream = CommonTokenStream(lexer)
-
-    parser = EnsambladorParser(stream)
-    parser.removeErrorListeners()
-    parser.addErrorListener(CustomErrorListener())
-
-    tree = parser.programa()
-    print(tree.toStringTree(recog=parser))
-    print()
-
-    # Prueba 2: "Sumar 5 de 3 y guardar en registro A"
-    print("Prueba 2: Sumar 5 de 3 y guardar en registro A")
-    input_text = "Sumar 5 de 3 y guardar en registro A\n"
-    input_stream = InputStream(input_text)
-
-    lexer = EnsambladorLexer(input_stream)
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(CustomErrorListener())
-
-    print("Tokens generados:")
-    print_tokens(lexer)
-
-    stream = CommonTokenStream(lexer)
-
-    parser = EnsambladorParser(stream)
-    parser.removeErrorListeners()
-    parser.addErrorListener(CustomErrorListener())
-
-    tree = parser.programa()
-    print(tree.toStringTree(recog=parser))
-    print()
-
-    # Prueba 3: "Sumar 5 y 3"
-    print("Prueba 3: Sumar 5 y 3")
-    input_text = "Sumar 5 y 3\n"
-    input_stream = InputStream(input_text)
-
-    lexer = EnsambladorLexer(input_stream)
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(CustomErrorListener())
-
-    print("Tokens generados:")
-    print_tokens(lexer)
-
-    stream = CommonTokenStream(lexer)
-
-    parser = EnsambladorParser(stream)
-    parser.removeErrorListeners()
-    parser.addErrorListener(CustomErrorListener())
-
-    tree = parser.programa()
-    print(tree.toStringTree(recog=parser))
-
+    run_test("Sumar 5 + 3 y guardar en RA", "Prueba 1: Operación aritmética válida")
+    run_test("mover 8 a RB", "Prueba 2: Movimiento válido")
+    run_test("comparar RA con 10", "Prueba 3: Comparación válida")
+    run_test("si RA >= 5 ir_a Inicio", "Prueba 4: Condicional válida")
+    run_test("ir_a Fin", "Prueba 5: Salto válido")
+    run_test("Sumar 5 de 3 y guardar en RA", "Prueba 6: Instrucción mal formada")  # Esto sigue siendo una prueba negativa a propósito
 
 if __name__ == '__main__':
     main()
